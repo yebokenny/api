@@ -1,0 +1,140 @@
+name: Deploy Backend to Production (FTP)
+
+on:
+  push:
+    branches:
+      - prod
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy Production Backend
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: mbstring, xml, bcmath, pdo, pdo_mysql, fileinfo, openssl, tokenizer, json
+          coverage: none
+
+      - name: Install Dependencies
+        run: composer install --no-dev --optimize-autoloader --no-interaction --prefer-dist
+
+      - name: Create minimal .env for deployment
+        run: |
+          echo "APP_NAME=Esenio" > .env
+          echo "APP_ENV=production" >> .env
+          echo "APP_KEY=" >> .env
+          echo "APP_DEBUG=false" >> .env
+          echo "APP_URL=https://yebo.iaaws.com" >> .env
+          echo "" >> .env
+          echo "LOG_CHANNEL=stack" >> .env
+          echo "LOG_LEVEL=error" >> .env
+          echo "" >> .env
+          echo "DB_CONNECTION=mysql" >> .env
+          echo "DB_HOST=127.0.0.1" >> .env
+          echo "DB_PORT=3306" >> .env
+          echo "DB_DATABASE=placeholder" >> .env
+          echo "DB_USERNAME=placeholder" >> .env
+          echo "DB_PASSWORD=placeholder" >> .env
+          echo "" >> .env
+          echo "CACHE_DRIVER=file" >> .env
+          echo "SESSION_DRIVER=file" >> .env
+          echo "QUEUE_CONNECTION=sync" >> .env
+
+      - name: Generate Application Key
+        run: php artisan key:generate --force
+        continue-on-error: true
+
+      - name: Create SQLite database file (for cache operations)
+        run: |
+          mkdir -p database
+          touch database/database.sqlite
+        continue-on-error: true
+
+      - name: Clear Laravel Caches
+        run: |
+          php artisan config:clear || true
+          php artisan route:clear || true
+          php artisan view:clear || true
+          php artisan cache:clear || true
+        continue-on-error: true
+
+      - name: Validate FTP Secrets
+        run: |
+          if [ -z "${{ secrets.FTP_SERVER }}" ]; then
+            echo "Error: FTP_SERVER secret is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.FTP_USERNAME }}" ]; then
+            echo "Error: FTP_USERNAME secret is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.FTP_PASSWORD }}" ]; then
+            echo "Error: FTP_PASSWORD secret is not set"
+            exit 1
+          fi
+          if [ -z "${{ secrets.FTP_REMOTE_DIR }}" ]; then
+            echo "Error: FTP_REMOTE_DIR secret is not set"
+            exit 1
+          fi
+          echo "All production FTP secrets are configured"
+          echo "FTP Server: ${{ secrets.FTP_SERVER }}"
+          echo "Remote Dir: ${{ secrets.FTP_REMOTE_DIR }}"
+
+      - name: Test FTP Connection
+        run: |
+          echo "Testing FTP connection..."
+          nslookup ${{ secrets.FTP_SERVER }} || echo "Warning: Could not resolve FTP server hostname"
+        continue-on-error: true
+
+      - name: Deploy to FTP Server
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.4
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          server-dir: ${{ secrets.FTP_REMOTE_DIR }}
+          dangerous-clean-slate: false
+          dry-run: false
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            **/.env
+            **/.env.*
+            **/storage/logs/**
+            **/storage/framework/cache/**
+            **/storage/framework/sessions/**
+            **/tests/**
+            **/.phpunit.cache
+            **/phpunit.xml
+            **/.github/**
+            **/README.md
+            **/CHANGELOG.md
+            **/LICENSE
+            **/.editorconfig
+            **/.gitattributes
+            **/.gitignore
+            **/vite.config.js
+            **/tailwind.config.js
+            **/postcss.config.js
+            **/tsconfig.json
+            **/tsconfig.node.json
+            **/.idea/**
+            **/.vscode/**
+            **/node_modules/**
+
+      - name: Post-deployment note
+        continue-on-error: true
+        run: |
+          echo "Deployment completed."
+          echo "Run 'php artisan migrate --force' and 'php artisan config:cache' on the server if needed."
