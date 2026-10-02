@@ -3,7 +3,7 @@ name: Deploy Backend to Production (FTP)
 on:
   push:
     branches:
-      - prod
+      - production
   workflow_dispatch:
 
 permissions:
