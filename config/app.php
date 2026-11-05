@@ -54,6 +54,8 @@ return [
 
     'url' => env('APP_URL', 'http://localhost'),
 
+    'public_web_url' => env('PUBLIC_WEB_URL', 'https://yebokenny.com'),
+
     /*
     |--------------------------------------------------------------------------
     | Application Timezone

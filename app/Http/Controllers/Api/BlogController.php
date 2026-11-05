@@ -34,6 +34,54 @@ class BlogController extends Controller
         return response()->json(['data' => $payload]);
     }
 
+    public function recordView(Blog $blog)
+    {
+        $blog->increment('views');
+
+        return response()->json(['data' => ['views' => (int) $blog->fresh()->views]]);
+    }
+
+    public function likes(Blog $blog)
+    {
+        return response()->json(['data' => ['likes' => (int) $blog->likes]]);
+    }
+
+    public function like(Request $request, Blog $blog)
+    {
+        if ($request->input('type') === 'minus') {
+            $blog->likes = max(0, (int) $blog->likes - 1);
+            $blog->save();
+        } else {
+            $blog->increment('likes');
+        }
+
+        return response()->json(['data' => ['likes' => (int) $blog->fresh()->likes]]);
+    }
+
+    public function comment(Request $request, Blog $blog)
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:120'],
+            'comment' => ['required', 'string', 'max:5000'],
+        ]);
+
+        $comment = $blog->comments()->create([
+            'name' => $data['name'],
+            'comment' => $data['comment'],
+            'status' => 'Active',
+        ]);
+        $blog->increment('comments_count');
+
+        return response()->json([
+            'data' => [
+                'id' => $comment->id,
+                'name' => $comment->name,
+                'comment' => $comment->comment,
+                'createdAt' => $comment->created_at?->toIso8601String(),
+            ],
+        ], 201);
+    }
+
     public function store(Request $request)
     {
         $data = $request->validate([

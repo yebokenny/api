@@ -62,7 +62,7 @@ class BusinessItem extends Model
             'price' => $this->Pricing !== null ? (float) $this->Pricing : null,
             'url' => $this->ExternalUrl,
             'tags' => $this->Tags,
-            'imageUrl' => ($url = \App\Support\MediaStore::url($this->ImageUrl)) !== '' ? $url : null,
+            'imageUrl' => ($url = \App\Support\MediaStore::url($this->ImageUrl, 'product')) !== '' ? $url : null,
             'yeboScore' => (float) $this->YeboKennyScore,
             'recommendationCount' => (int) $this->RecommendationCount,
         ];

@@ -550,7 +550,7 @@ class BusinessController extends Controller
 
     private function reviewImage(?string $value): ?string
     {
-        $url = \App\Support\MediaStore::url($value);
+        $url = \App\Support\MediaStore::url($value, 'review');
 
         return $url === '' ? null : $url;
     }

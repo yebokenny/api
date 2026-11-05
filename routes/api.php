@@ -9,6 +9,7 @@ use App\Http\Controllers\Api\BlogController;
 use App\Http\Controllers\Api\BusinessController;
 use App\Http\Controllers\Api\CatalogController;
 use App\Http\Controllers\Api\LeadController;
+use App\Http\Controllers\Api\LegacyBlogController;
 use App\Http\Controllers\Api\MediaController;
 use App\Http\Controllers\Api\RecommendationController;
 use App\Http\Controllers\Api\TicketController;
@@ -33,7 +34,12 @@ Route::post('/recommendations/{token}', [RecommendationController::class, 'store
 
 Route::post('/leads', [LeadController::class, 'store']);
 Route::get('/blogs', [BlogController::class, 'index']);
-Route::get('/blogs/{blog}', [BlogController::class, 'show']);
+Route::get('/blogs/{blog}', [BlogController::class, 'show'])->whereNumber('blog');
+Route::post('/blogs/{blog}/views', [BlogController::class, 'recordView'])->whereNumber('blog');
+Route::get('/blogs/{blog}/likes', [BlogController::class, 'likes'])->whereNumber('blog');
+Route::post('/blogs/{blog}/likes', [BlogController::class, 'like'])->whereNumber('blog');
+Route::post('/blogs/{blog}/comments', [BlogController::class, 'comment'])->whereNumber('blog');
+Route::post('/reviews/images', [LegacyBlogController::class, 'uploadReview']);
 
 Route::get('/Category/GetTopLevel', [\App\Http\Controllers\Api\LegacyCatalogController::class, 'categories']);
 Route::get('/Business/RecentAdditions/{pageSize}/{pageNumber}', [\App\Http\Controllers\Api\LegacyCatalogController::class, 'recent']);
@@ -44,7 +50,7 @@ Route::get('/BusinessHour/{id}', [\App\Http\Controllers\Api\LegacyCatalogControl
 Route::get('/Feedback/Feedback/{id}', [\App\Http\Controllers\Api\LegacyCatalogController::class, 'feedback']);
 Route::post('/Feedback/Feedback/Create', [\App\Http\Controllers\Api\LegacyCatalogController::class, 'createFeedback']);
 Route::post('/Lead/Create', [\App\Http\Controllers\Api\LegacyCatalogController::class, 'createLead']);
-Route::post('/Business/RegisterRecommendation', [\App\Http\Controllers\Api\LegacyCatalogController::class, 'createLead']);
+Route::post('/Business/RegisterRecommendation', [\App\Http\Controllers\Api\LegacyCatalogController::class, 'registerRecommendation']);
 Route::get('/Survey/GetCategory/{categoryId}', [\App\Http\Controllers\Api\LegacyCatalogController::class, 'surveyByCategory']);
 Route::get('/Survey/GetSurvey/{businessId}', [\App\Http\Controllers\Api\LegacyCatalogController::class, 'surveyByBusiness']);
 Route::post('/Recommendation/Create', [\App\Http\Controllers\Api\LegacyCatalogController::class, 'createRecommendation']);

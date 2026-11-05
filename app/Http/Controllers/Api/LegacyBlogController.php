@@ -153,15 +153,16 @@ class LegacyBlogController extends Controller
     {
         $paths = [];
         foreach (['one', 'two'] as $key) {
-            $stored = $this->storeImage($request->input($key));
+            $stored = $this->storeImage($request->input($key), 'review');
             if ($stored) {
                 $paths[] = $stored;
             }
         }
 
-        $root = rtrim((string) config('app.url'), '/');
-
-        return response()->json(['code' => 200, 'data' => array_map(fn (string $path) => $root.'/'.$path, $paths)]);
+        return response()->json([
+            'code' => 200,
+            'data' => array_map(fn (string $path) => \App\Support\MediaStore::url($path, 'review'), $paths),
+        ]);
     }
 
     public function comment(Request $request)
@@ -216,7 +217,7 @@ class LegacyBlogController extends Controller
             'id' => $blog->id,
             'title' => $blog->title,
             'category' => $blog->category,
-            'image_path' => $blog->image_path,
+            'image_path' => \App\Support\MediaStore::url($blog->image_path, 'blog'),
             'status' => $blog->status,
             'likes' => (int) $blog->likes,
             'views' => (int) $blog->views,
@@ -231,7 +232,7 @@ class LegacyBlogController extends Controller
         return $row;
     }
 
-    private function storeImage(mixed $image): ?string
+    private function storeImage(mixed $image, string $kind = 'blog'): ?string
     {
         if (! is_string($image) || $image === '') {
             return null;
@@ -251,6 +252,6 @@ class LegacyBlogController extends Controller
         if (! $extension) {
             return null;
         }
-        return \App\Support\MediaStore::putContents('blog', $binary, $extension);
+        return \App\Support\MediaStore::putContents($kind, $binary, $extension);
     }
 }

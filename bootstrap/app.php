@@ -1,6 +1,16 @@
 <?php
 
 use Illuminate\Foundation\Application;
+
+$cachedRoutes = __DIR__.'/cache/routes-v7.php';
+if (is_file($cachedRoutes)) {
+    foreach ([dirname(__DIR__).'/routes/api.php', dirname(__DIR__).'/routes/legacy.php', dirname(__DIR__).'/routes/web.php'] as $routesFile) {
+        if (is_file($routesFile) && filemtime($routesFile) > filemtime($cachedRoutes)) {
+            @unlink($cachedRoutes);
+            break;
+        }
+    }
+}
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Support\Facades\Route;

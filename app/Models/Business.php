@@ -57,6 +57,23 @@ class Business extends Model
         ];
     }
 
+    public function resolveRouteBinding($value, $field = null)
+    {
+        if ($field !== null) {
+            return $this->where($field, $value)->first();
+        }
+        if (Str::isUuid((string) $value)) {
+            return $this->where('Id', $value)->first();
+        }
+
+        $slug = Str::slug((string) $value);
+        $like = '%'.str_replace('-', '%', $slug).'%';
+        $matches = $this->where('IsDeleted', false)->where('Name', 'like', $like)->limit(15)->get();
+        $exact = $matches->first(fn (self $business) => Str::slug((string) $business->Name) === $slug);
+
+        return $exact ?: ($matches->count() === 1 ? $matches->first() : null);
+    }
+
     public function owner(): BelongsTo
     {
         return $this->belongsTo(User::class, 'ApplicationUserId', 'Id');

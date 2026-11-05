@@ -39,8 +39,8 @@ class Blog extends Model
             'status' => $this->status,
             'likes' => $this->likes,
             'views' => $this->views,
-            'comments' => $this->comments_count,
-            'imagePath' => $this->image_path,
+            'comments' => (int) $this->comments_count,
+            'imagePath' => \App\Support\MediaStore::url($this->image_path, 'blog'),
             'author' => $this->author?->name,
             'createdAt' => $this->created_at?->toIso8601String(),
         ];

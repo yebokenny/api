@@ -10,11 +10,13 @@ use App\Models\Recommendation;
 use App\Models\RecommendationInvite;
 use App\Models\Survey;
 use App\Services\RecommendationScorer;
+use App\Support\BrevoMail;
 use App\Support\LegacyCodes;
 use App\Support\MediaStore;
 use App\Support\RichText;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 class LegacyCatalogController extends Controller
 {
@@ -139,7 +141,7 @@ class LegacyCatalogController extends Controller
         if (! is_array($captured)) {
             $captured = [];
         }
-        $email = $captured['email'] ?? $captured['Email'] ?? $request->input('emailAddress') ?? 'visitor@yebokenny.local';
+        $email = $captured['email'] ?? $captured['Email'] ?? $request->input('email') ?? $request->input('emailAddress') ?? 'visitor@yebokenny.local';
         $name = $captured['name'] ?? $captured['fullName'] ?? $captured['Name'] ?? 'Website visitor';
         $message = $captured['message'] ?? $captured['Message'] ?? '';
 
@@ -157,6 +159,62 @@ class LegacyCatalogController extends Controller
         ]);
 
         return response()->json(['data' => ['isSuccess' => true], 'status' => '200']);
+    }
+
+    public function registerRecommendation(Request $request)
+    {
+        $email = trim((string) ($request->input('email') ?: $request->input('Email') ?: ''));
+        $businessId = (string) ($request->input('businessProfileId') ?: $request->input('BusinessProfileId') ?: '');
+        if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return $this->confirmation(false, 'Invalid email address.');
+        }
+
+        $business = Business::where('Id', $businessId)->where('IsDeleted', false)->first();
+        if (! $business) {
+            return $this->confirmation(false, 'Business does not exist.');
+        }
+
+        $exists = RecommendationInvite::where('BusinessProfileId', $business->getKey())
+            ->where('Email', $email)
+            ->where('IsDeleted', false)
+            ->exists();
+        if ($exists) {
+            return $this->confirmation(false, 'A recommendation for this email and business already exists.');
+        }
+
+        $token = (string) Str::uuid();
+        $invite = RecommendationInvite::create([
+            'Id' => LegacyCodes::id(),
+            'BusinessProfileId' => $business->getKey(),
+            'Email' => $email,
+            'Token' => $token,
+            'CreatedAt' => now(),
+            'CreationDate' => now(),
+            'IsDeleted' => false,
+            'TenantId' => LegacyCodes::TENANT,
+        ]);
+
+        $link = rtrim((string) config('app.public_web_url'), '/')
+            .'/recommendation?token='.urlencode($token)
+            .'&businessId='.$business->getKey()
+            .'&catId='.$business->CategoryId
+            .'&emailAddress='.urlencode($email);
+        $sent = BrevoMail::send(
+            $email,
+            $email,
+            'Complete Your Recommendation',
+            BrevoMail::html(
+                'Complete your recommendation',
+                "Use this link to recommend {$business->Name}:\n\n{$link}"
+            )
+        );
+        if (! $sent) {
+            $invite->delete();
+
+            return $this->confirmation(false, 'The recommendation link could not be emailed. Please try again.');
+        }
+
+        return $this->confirmation(true, 'Recommendation link sent successfully.');
     }
 
     public function surveyByCategory(string $categoryId)
@@ -294,6 +352,17 @@ class LegacyCatalogController extends Controller
         return response()->json(['data' => ['isSuccess' => true], 'status' => '200']);
     }
 
+    private function confirmation(bool $success, string $message)
+    {
+        return response()->json([
+            'data' => [
+                'isSuccess' => $success,
+                'messsage' => $message,
+            ],
+            'status' => '200',
+        ]);
+    }
+
     private function publicReview(object $row): array
     {
         $writer = $row->FeedbackWriter ?: 'Anonymous';
@@ -305,8 +374,8 @@ class LegacyCatalogController extends Controller
             'title' => $row->FeedbackTitle ?? '',
             'feedbackRating' => (float) $row->FeedbackRating,
             'feedbackValue' => $row->FeedbackValue,
-            'feedbackImage1' => ($first = MediaStore::url($row->FeedbackImage1)) !== '' ? $first : null,
-            'feedbackImage2' => ($second = MediaStore::url($row->FeedbackImage2)) !== '' ? $second : null,
+            'feedbackImage1' => ($first = MediaStore::url($row->FeedbackImage1, 'review')) !== '' ? $first : null,
+            'feedbackImage2' => ($second = MediaStore::url($row->FeedbackImage2, 'review')) !== '' ? $second : null,
         ];
     }
 

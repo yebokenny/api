@@ -20,18 +20,67 @@ class MediaStore
         'review' => 'uploads/reviews',
     ];
 
-    public static function url(?string $path): string
+    public static function url(?string $path, ?string $kind = null): string
     {
         if (! is_string($path) || trim($path) === '') {
             return '';
         }
-        if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://') || str_starts_with($path, 'data:')) {
+        if (str_starts_with($path, 'data:')) {
             return $path;
         }
 
-        $normalized = ltrim(str_replace('\\', '/', $path), '/');
+        $relative = self::relativePath($path);
+        if ($relative === null) {
+            return $path;
+        }
+        if ($kind !== null) {
+            $relative = self::placeInFolder($relative, $kind);
+        }
+        if ($relative === '') {
+            return '';
+        }
 
-        return rtrim((string) config('app.url'), '/').'/'.$normalized;
+        return rtrim((string) config('app.url'), '/').'/'.ltrim($relative, '/');
+    }
+
+    private static function relativePath(string $path): ?string
+    {
+        $path = trim(str_replace('\\', '/', $path));
+        if (preg_match('#^https?://#i', $path)) {
+            $parts = parse_url($path);
+            $host = strtolower((string) ($parts['host'] ?? ''));
+            if (! self::isLocalMediaHost($host)) {
+                return null;
+            }
+            $path = (string) ($parts['path'] ?? '');
+        }
+
+        return ltrim($path, '/');
+    }
+
+    private static function isLocalMediaHost(string $host): bool
+    {
+        $own = strtolower((string) parse_url((string) config('app.url'), PHP_URL_HOST));
+        $hosts = array_filter(['yebo.iaaws.com', 'api.yebokenny.com', '127.0.0.1', 'localhost', $own]);
+
+        return in_array($host, $hosts, true);
+    }
+
+    private static function placeInFolder(string $relative, string $kind): string
+    {
+        $folder = self::FOLDERS[$kind] ?? null;
+        if ($folder === null || $relative === '') {
+            return $relative;
+        }
+        if ($relative === $folder || str_starts_with($relative, $folder.'/')) {
+            return $relative;
+        }
+        // Keep files that already live in a nested uploads folder, including uploads/old.
+        if (str_starts_with($relative, 'uploads/') && substr_count($relative, '/') >= 2) {
+            return $relative;
+        }
+
+        return $folder.'/'.basename($relative);
     }
 
     public static function payload(mixed $image): ?array
