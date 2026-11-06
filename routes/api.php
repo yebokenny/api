@@ -126,6 +126,8 @@ Route::middleware('token:admin')->group(function () {
     Route::get('/admin/businesses', [AdminController::class, 'businesses']);
     Route::get('/admin/users', [AdminController::class, 'users']);
     Route::patch('/admin/plans/{plan}', [CatalogController::class, 'updatePlan']);
+    Route::get('/admin/blog-categories', [BlogController::class, 'categories']);
+    Route::post('/admin/blog-categories', [BlogController::class, 'storeCategory']);
     Route::get('/admin/blogs', function () {
         request()->merge(['all' => true]);
 

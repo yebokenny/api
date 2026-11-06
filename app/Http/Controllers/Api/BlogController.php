@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\Blog;
 use App\Support\MediaStore;
+use App\Support\SiteSettings;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
@@ -83,6 +84,29 @@ class BlogController extends Controller
                 'createdAt' => $comment->created_at?->toIso8601String(),
             ],
         ], 201);
+    }
+
+    public function categories()
+    {
+        return response()->json(['data' => SiteSettings::blogCategories()]);
+    }
+
+    public function storeCategory(Request $request)
+    {
+        $data = $request->validate([
+            'name' => ['required', 'string', 'max:80'],
+        ]);
+        $name = trim((string) preg_replace('/\s+/u', ' ', $data['name']));
+        if ($name === '') {
+            return response()->json(['message' => 'Enter a category name.'], 422);
+        }
+        foreach (SiteSettings::blogCategories() as $category) {
+            if (strcasecmp($category, $name) === 0) {
+                return response()->json(['message' => 'This category already exists.'], 422);
+            }
+        }
+
+        return response()->json(['data' => SiteSettings::addBlogCategory($name)], 201);
     }
 
     public function store(Request $request)

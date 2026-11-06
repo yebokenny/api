@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Schema;
 
 class SiteSettings
 {
+    public const BLOG_CATEGORY_DEFAULTS = ['Business', 'General'];
+
     public const KEYS = [
         'maintenance',
         'maintenanceEnds',
@@ -43,6 +45,30 @@ class SiteSettings
         return $out;
     }
 
+    public static function blogCategories(): array
+    {
+        self::ensure();
+        $used = [];
+        if (Schema::hasTable('blogs') && Schema::hasColumn('blogs', 'category')) {
+            $used = DB::table('blogs')->whereNotNull('category')->distinct()->pluck('category')->all();
+        }
+
+        return self::uniqueNames(array_merge(self::BLOG_CATEGORY_DEFAULTS, self::storedBlogCategories(), $used));
+    }
+
+    public static function addBlogCategory(string $name): array
+    {
+        self::ensure();
+        $stored = self::storedBlogCategories();
+        $stored[] = $name;
+        DB::table('sitesetting')->updateOrInsert(
+            ['SettingKey' => 'blogCategories'],
+            ['SettingValue' => json_encode(self::uniqueNames($stored), JSON_UNESCAPED_UNICODE)]
+        );
+
+        return self::blogCategories();
+    }
+
     public static function replace(array $input): array
     {
         self::ensure();
@@ -63,6 +89,30 @@ class SiteSettings
         }
 
         return self::all();
+    }
+
+    private static function storedBlogCategories(): array
+    {
+        $stored = DB::table('sitesetting')->where('SettingKey', 'blogCategories')->value('SettingValue');
+        $names = json_decode((string) $stored, true);
+
+        return is_array($names) ? self::uniqueNames($names) : [];
+    }
+
+    private static function uniqueNames(array $names): array
+    {
+        $out = [];
+        $seen = [];
+        foreach ($names as $name) {
+            $name = trim((string) preg_replace('/\s+/u', ' ', (string) $name));
+            if ($name === '' || mb_strlen($name) > 80 || isset($seen[strtolower($name)])) {
+                continue;
+            }
+            $seen[strtolower($name)] = true;
+            $out[] = $name;
+        }
+
+        return $out;
     }
 
     private static function ensure(): void
