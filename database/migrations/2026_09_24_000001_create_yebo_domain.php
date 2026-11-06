@@ -8,6 +8,7 @@ return new class extends Migration
 {
     public function up(): void
     {
+        if (! Schema::hasTable('plans')) {
         Schema::create('plans', function (Blueprint $table) {
             $table->id();
             $table->string('name');
@@ -21,32 +22,36 @@ return new class extends Migration
             $table->json('features');
             $table->timestamps();
         });
+        }
 
-        Schema::table('users', function (Blueprint $table) {
-            $table->foreignId('plan_id')->nullable()->constrained()->nullOnDelete();
-        });
+        $this->addPlanColumn();
 
+        if (! Schema::hasTable('api_tokens')) {
         Schema::create('api_tokens', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->string('user_id', 64)->nullable()->index();
             $table->string('token', 64)->unique();
             $table->timestamp('expires_at');
             $table->timestamps();
         });
+        }
 
+        if (! Schema::hasTable('categories')) {
         Schema::create('categories', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('parent_id')->nullable()->constrained('categories')->nullOnDelete();
+            $table->unsignedBigInteger('parent_id')->nullable()->index();
             $table->string('name');
             $table->string('slug')->unique();
             $table->json('default_questions');
             $table->timestamps();
         });
+        }
 
+        if (! Schema::hasTable('businesses')) {
         Schema::create('businesses', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('category_id')->constrained();
+            $table->string('user_id', 64)->nullable()->index();
+            $table->unsignedBigInteger('category_id')->nullable()->index();
             $table->string('name');
             $table->string('slug')->unique();
             $table->text('description');
@@ -64,10 +69,12 @@ return new class extends Migration
             $table->json('survey_questions')->nullable();
             $table->timestamps();
         });
+        }
 
+        if (! Schema::hasTable('recommendation_invites')) {
         Schema::create('recommendation_invites', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('business_id')->constrained()->cascadeOnDelete();
+            $table->unsignedBigInteger('business_id')->nullable()->index();
             $table->string('email');
             $table->string('token', 64)->unique();
             $table->json('answers')->nullable();
@@ -78,7 +85,9 @@ return new class extends Migration
             $table->timestamps();
             $table->unique(['business_id', 'email']);
         });
+        }
 
+        if (! Schema::hasTable('leads')) {
         Schema::create('leads', function (Blueprint $table) {
             $table->id();
             $table->string('name');
@@ -90,19 +99,23 @@ return new class extends Migration
             $table->text('notes')->nullable();
             $table->timestamps();
         });
+        }
 
+        if (! Schema::hasTable('tickets')) {
         Schema::create('tickets', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->string('user_id', 64)->nullable()->index();
             $table->string('subject');
             $table->text('message');
             $table->string('status')->default('open');
             $table->timestamps();
         });
+        }
 
+        if (! Schema::hasTable('blogs')) {
         Schema::create('blogs', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->string('user_id', 64)->nullable()->index();
             $table->string('title');
             $table->string('category');
             $table->longText('details');
@@ -113,15 +126,29 @@ return new class extends Migration
             $table->unsignedInteger('comments_count')->default(0);
             $table->timestamps();
         });
+        }
 
+        if (! Schema::hasTable('blog_comments')) {
         Schema::create('blog_comments', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('blog_id')->constrained()->cascadeOnDelete();
+            $table->unsignedBigInteger('blog_id')->nullable()->index();
             $table->string('name');
             $table->string('email')->nullable();
             $table->text('comment');
             $table->string('status')->default('approved');
             $table->timestamps();
+        });
+        }
+    }
+
+    private function addPlanColumn(): void
+    {
+        if (! Schema::hasTable('users') || ! Schema::hasTable('plans') || Schema::hasColumn('users', 'plan_id')) {
+            return;
+        }
+
+        Schema::table('users', function (Blueprint $table) {
+            $table->unsignedBigInteger('plan_id')->nullable();
         });
     }
 
@@ -135,9 +162,11 @@ return new class extends Migration
         Schema::dropIfExists('businesses');
         Schema::dropIfExists('categories');
         Schema::dropIfExists('api_tokens');
-        Schema::table('users', function (Blueprint $table) {
-            $table->dropConstrainedForeignId('plan_id');
-        });
+        if (Schema::hasColumn('users', 'plan_id')) {
+            Schema::table('users', function (Blueprint $table) {
+                $table->dropColumn('plan_id');
+            });
+        }
         Schema::dropIfExists('plans');
     }
 };

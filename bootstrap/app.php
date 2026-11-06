@@ -35,11 +35,35 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (\Illuminate\Validation\ValidationException $e, \Illuminate\Http\Request $request) {
-            if ($request->is('api/*')) {
+            if ($request->is('api/*') || $request->expectsJson()) {
                 return response()->json([
                     'message' => collect($e->errors())->flatten()->first(),
                     'errors' => $e->errors(),
                 ], 422);
             }
+        });
+
+        $exceptions->render(function (\Throwable $e, \Illuminate\Http\Request $request) {
+            if (! $request->is('api/*') && ! $request->expectsJson()) {
+                return null;
+            }
+            if ($e instanceof \Illuminate\Auth\AuthenticationException) {
+                return response()->json(['message' => 'Please sign in again.'], 401);
+            }
+
+            $status = $e instanceof \Symfony\Component\HttpKernel\Exception\HttpExceptionInterface
+                ? $e->getStatusCode()
+                : 500;
+            $message = trim($e->getMessage());
+            $technical = $status >= 500
+                || preg_match('/sqlstate|stack trace|vendor[\/\\\\]|\\.php\\b|illuminate\\\\|app\\\\models|syntax error|column not found|connection:|no query results/i', $message) === 1;
+
+            if ($technical || $message === '') {
+                return response()->json([
+                    'message' => 'Something went wrong, try again later or contact system admin',
+                ], $status >= 400 ? $status : 500);
+            }
+
+            return response()->json(['message' => $message], $status);
         });
     })->create();

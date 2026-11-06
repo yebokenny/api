@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\CatalogController;
 use App\Http\Controllers\Api\LeadController;
 use App\Http\Controllers\Api\LegacyBlogController;
 use App\Http\Controllers\Api\MediaController;
+use App\Http\Controllers\Api\MigrationController;
 use App\Http\Controllers\Api\RecommendationController;
 use App\Http\Controllers\Api\TicketController;
 use Illuminate\Support\Facades\Route;
@@ -118,6 +119,8 @@ Route::middleware('token:admin')->group(function () {
     Route::patch('/admin/tickets/{ticket}', [TicketController::class, 'updateStatus']);
     Route::get('/admin/origins', [AdminController::class, 'origins']);
     Route::put('/admin/origins', [AdminController::class, 'updateOrigins']);
+    Route::get('/admin/migrations', [MigrationController::class, 'index']);
+    Route::post('/admin/migrations', [MigrationController::class, 'run']);
     Route::get('/admin/settings', [AdminController::class, 'settings']);
     Route::put('/admin/settings', [AdminController::class, 'updateSettings']);
     Route::get('/admin/businesses', [AdminController::class, 'businesses']);
