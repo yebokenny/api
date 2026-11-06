@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Blog;
 use App\Support\MediaStore;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 class BlogController extends Controller
 {
@@ -133,6 +135,13 @@ class BlogController extends Controller
 
     public function destroy(Blog $blog)
     {
+        $id = $blog->getKey();
+        foreach (['comments', 'blog_comments', 'blog_views', 'blog_likes'] as $table) {
+            if (Schema::hasTable($table) && Schema::hasColumn($table, 'blog_id')) {
+                DB::table($table)->where('blog_id', $id)->delete();
+            }
+        }
+
         $blog->delete();
 
         return response()->json(['data' => ['ok' => true]]);
