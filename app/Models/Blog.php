@@ -5,6 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Facades\Schema;
 
 class Blog extends Model
 {
@@ -18,7 +19,21 @@ class Blog extends Model
         'likes',
         'views',
         'comments_count',
+        'admin_id',
     ];
+
+    protected static function booted(): void
+    {
+        static::creating(function (Blog $blog) {
+            if ($blog->admin_id !== null && $blog->admin_id !== '') {
+                return;
+            }
+            if (! Schema::hasColumn($blog->getTable(), 'admin_id')) {
+                return;
+            }
+            $blog->admin_id = $blog->user_id;
+        });
+    }
 
     public function author(): BelongsTo
     {
