@@ -130,6 +130,7 @@ Route::middleware('token:admin')->group(function () {
     });
     Route::post('/admin/blogs', [BlogController::class, 'store']);
     Route::patch('/admin/blogs/{blog}', [BlogController::class, 'update']);
+    Route::post('/admin/blogs/{blog}/image', [BlogController::class, 'image']);
     Route::delete('/admin/blogs/{blog}', [BlogController::class, 'destroy']);
     Route::get('/admin/tickets', [TicketController::class, 'index']);
     Route::post('/admin/categories', [CatalogController::class, 'storeCategory']);

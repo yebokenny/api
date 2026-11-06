@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Blog;
+use App\Support\MediaStore;
 use Illuminate\Http\Request;
 
 class BlogController extends Controller
@@ -111,6 +112,20 @@ class BlogController extends Controller
         ]);
 
         $blog->fill($data)->save();
+        $blog->load('author');
+
+        return response()->json(['data' => $blog->toPublic(true)]);
+    }
+
+    public function image(Request $request, Blog $blog)
+    {
+        $request->validate([
+            'file' => ['required', 'file', 'max:10240'],
+        ]);
+
+        $image = MediaStore::store($request->file('file'), 'blog', $request->ip());
+        $blog->image_path = $image->OriginalUrl;
+        $blog->save();
         $blog->load('author');
 
         return response()->json(['data' => $blog->toPublic(true)]);
