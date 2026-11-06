@@ -136,14 +136,67 @@ class BlogController extends Controller
     public function destroy(Blog $blog)
     {
         $id = $blog->getKey();
-        foreach (['comments', 'blog_comments', 'blog_views', 'blog_likes'] as $table) {
-            if (Schema::hasTable($table) && Schema::hasColumn($table, 'blog_id')) {
-                DB::table($table)->where('blog_id', $id)->delete();
+
+        DB::statement('SET FOREIGN_KEY_CHECKS=0');
+        try {
+            foreach (['comments', 'blog_comments', 'blog_views', 'blog_likes'] as $table) {
+                $this->deleteMatchingRows($table, 'blog_id', $id);
             }
+            $this->deleteReferencingRows('blogs', 'id', $id);
+            DB::table('blogs')->where('id', $id)->delete();
+        } finally {
+            DB::statement('SET FOREIGN_KEY_CHECKS=1');
         }
 
-        $blog->delete();
-
         return response()->json(['data' => ['ok' => true]]);
+    }
+
+    private function deleteReferencingRows(string $table, string $column, mixed $value, int $depth = 0): void
+    {
+        if ($depth > 5 || $value === null || $value === '') {
+            return;
+        }
+
+        $references = DB::select(
+            'SELECT TABLE_NAME AS related_table, COLUMN_NAME AS related_column
+             FROM information_schema.KEY_COLUMN_USAGE
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND REFERENCED_TABLE_SCHEMA = DATABASE()
+               AND REFERENCED_TABLE_NAME = ?
+               AND REFERENCED_COLUMN_NAME = ?',
+            [$table, $column]
+        );
+
+        foreach ($references as $reference) {
+            $relatedTable = (string) ($reference->related_table ?? '');
+            $relatedColumn = (string) ($reference->related_column ?? '');
+            if (! preg_match('/^[A-Za-z0-9_]+$/', $relatedTable) || ! preg_match('/^[A-Za-z0-9_]+$/', $relatedColumn)) {
+                continue;
+            }
+            if (! Schema::hasTable($relatedTable) || ! Schema::hasColumn($relatedTable, $relatedColumn)) {
+                continue;
+            }
+
+            if (Schema::hasColumn($relatedTable, 'id')) {
+                $childIds = DB::table($relatedTable)->where($relatedColumn, $value)->pluck('id');
+                foreach ($childIds as $childId) {
+                    $this->deleteReferencingRows($relatedTable, 'id', $childId, $depth + 1);
+                }
+            }
+
+            DB::table($relatedTable)->where($relatedColumn, $value)->delete();
+        }
+    }
+
+    private function deleteMatchingRows(string $table, string $column, mixed $value): void
+    {
+        if (! preg_match('/^[A-Za-z0-9_]+$/', $table) || ! preg_match('/^[A-Za-z0-9_]+$/', $column)) {
+            return;
+        }
+        if (! Schema::hasTable($table) || ! Schema::hasColumn($table, $column)) {
+            return;
+        }
+
+        DB::table($table)->where($column, $value)->delete();
     }
 }
