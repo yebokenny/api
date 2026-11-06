@@ -61,6 +61,7 @@ return Application::configure(basePath: dirname(__DIR__))
             if ($technical || $message === '') {
                 return response()->json([
                     'message' => 'Something went wrong, try again later or contact system admin',
+                    'error' => $message !== '' ? $message : class_basename($e),
                 ], $status >= 400 ? $status : 500);
             }
 

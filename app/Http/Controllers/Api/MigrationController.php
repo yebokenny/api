@@ -26,6 +26,7 @@ class MigrationController extends Controller
 
             return response()->json([
                 'message' => 'Something went wrong, try again later or contact system admin',
+                'error' => $error->getMessage(),
             ], 500);
         }
 
@@ -38,6 +39,7 @@ class MigrationController extends Controller
 
             return response()->json([
                 'message' => 'Something went wrong, try again later or contact system admin',
+                'error' => $output !== '' ? $output : 'Migration failed',
             ], 500);
         }
 
